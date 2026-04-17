@@ -1,0 +1,508 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>파크팅 - 공원에서 만나는 새로운 인연</title>
+  <meta name="description" content="GPS 기반 공원 소셜 네트워킹 서비스. 같은 공원, 같은 SPOT에 있는 사람들과 자연스럽게 연결되세요.">
+  
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+  
+  <!-- Leaflet CSS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  
+  <!-- App CSS -->
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="css/components.css">
+  
+  <!-- Leaflet JS -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  
+  <style>
+    /* ── Hero ── */
+    .hero {
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      position: relative;
+      overflow: hidden;
+      padding-top: 80px;
+    }
+    .hero-content {
+      position: relative;
+      z-index: 2;
+      text-align: center;
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 0 var(--spacing-lg);
+    }
+    .hero-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: var(--spacing-sm);
+      padding: var(--spacing-sm) var(--spacing-lg);
+      background: rgba(255, 107, 157, 0.1);
+      border: 1px solid rgba(255, 107, 157, 0.3);
+      border-radius: var(--radius-pill);
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: var(--accent-pink);
+      margin-bottom: var(--spacing-xl);
+      animation: fadeInDown 0.6s ease;
+    }
+    .hero h1 {
+      font-size: clamp(2.5rem, 6vw, 4.5rem);
+      font-weight: 900;
+      line-height: 1.1;
+      margin-bottom: var(--spacing-lg);
+      animation: fadeInUp 0.8s ease;
+    }
+    .hero-desc {
+      font-size: clamp(1rem, 2vw, 1.25rem);
+      color: var(--text-secondary);
+      margin-bottom: var(--spacing-2xl);
+      line-height: 1.7;
+      animation: fadeInUp 0.8s ease 0.2s both;
+    }
+    .hero-actions {
+      display: flex;
+      gap: var(--spacing-md);
+      justify-content: center;
+      flex-wrap: wrap;
+      animation: fadeInUp 0.8s ease 0.4s both;
+    }
+    .hero-particles {
+      position: absolute;
+      inset: 0;
+      overflow: hidden;
+      z-index: 1;
+    }
+    .particle {
+      position: absolute;
+      border-radius: 50%;
+      animation: particleFloat 8s ease-in-out infinite;
+    }
+    /* ── How it works ── */
+    .step-number {
+      width: 48px;
+      height: 48px;
+      border-radius: var(--radius-full);
+      background: var(--gradient-primary);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.2rem;
+      font-weight: 800;
+      margin-bottom: var(--spacing-md);
+      flex-shrink: 0;
+    }
+    .step-connector {
+      width: 2px;
+      height: 40px;
+      background: linear-gradient(to bottom, var(--accent-purple), transparent);
+      margin: 0 auto;
+    }
+    /* ── Map Page ── */
+    #page-map {
+      padding-top: 0;
+    }
+    .map-wrapper {
+      position: relative;
+      width: 100%;
+      height: 100vh;
+    }
+    #map-container {
+      width: 100%;
+      height: 100%;
+    }
+    .map-top-bar {
+      position: absolute;
+      top: var(--spacing-lg);
+      left: var(--spacing-lg);
+      right: var(--spacing-lg);
+      z-index: 500;
+      display: flex;
+      flex-direction: column;
+      gap: var(--spacing-sm);
+    }
+    .map-top-bar-row {
+      display: flex;
+      align-items: center;
+      gap: var(--spacing-sm);
+    }
+    #park-info {
+      display: none;
+      position: absolute;
+      bottom: var(--spacing-xl);
+      left: var(--spacing-lg);
+      right: 400px;
+      z-index: 500;
+      background: rgba(10, 10, 26, 0.9);
+      backdrop-filter: blur(16px);
+      border: 1px solid var(--border-glass);
+      border-radius: var(--radius-lg);
+      padding: var(--spacing-md) var(--spacing-lg);
+    }
+    /* Custom Leaflet Markers */
+    .spot-marker-inner {
+      width: 50px;
+      height: 50px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.5rem;
+      position: relative;
+      backdrop-filter: blur(8px);
+    }
+    .spot-marker-count {
+      position: absolute;
+      top: -5px;
+      right: -5px;
+      min-width: 20px;
+      height: 20px;
+      border-radius: 10px;
+      font-size: 0.65rem;
+      font-weight: 700;
+      color: white;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0 4px;
+    }
+    .user-marker-inner {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      background: rgba(10, 10, 26, 0.8);
+      border: 2px solid var(--border-glass);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.2rem;
+      backdrop-filter: blur(4px);
+    }
+    .user-marker-inner.online {
+      border-color: var(--accent-green);
+      box-shadow: 0 0 10px rgba(42, 245, 152, 0.3);
+    }
+    .my-location-dot {
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      background: var(--accent-blue);
+      border: 3px solid white;
+      box-shadow: 0 0 20px rgba(123, 97, 255, 0.6);
+      animation: pulse 2s ease infinite;
+    }
+    /* Fix Leaflet popups */
+    .leaflet-popup-content-wrapper {
+      border-radius: 12px !important;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.3) !important;
+    }
+    /* ── Profile page ── */
+    .profile-section {
+      padding-top: 100px;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    @media (max-width: 768px) {
+      #park-info { right: var(--spacing-lg); bottom: 80px; }
+      .map-top-bar { left: var(--spacing-md); right: var(--spacing-md); top: var(--spacing-md); }
+      .profile-card { width: 300px; height: 420px; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ═══════════ Navigation ═══════════ -->
+<nav class="nav" id="main-nav">
+  <div class="nav-inner">
+    <div class="nav-logo" data-page="landing">
+      <div class="nav-logo-icon">🌳</div>
+      <span class="text-gradient">파크팅</span>
+    </div>
+    <div class="nav-menu" id="nav-menu">
+      <div class="nav-item active" data-page="landing">홈</div>
+      <div class="nav-item" data-page="map">지도</div>
+      <div class="nav-item" data-page="events">이벤트</div>
+      <div class="nav-item" data-page="profile">매칭</div>
+      <button class="nav-cta" data-action="start">시작하기</button>
+    </div>
+    <button class="nav-toggle" id="nav-toggle">
+      <span></span><span></span><span></span>
+    </button>
+  </div>
+</nav>
+
+<!-- ═══════════ Mobile Bottom Bar ═══════════ -->
+<div class="bottom-bar">
+  <div class="bottom-bar-inner">
+    <button class="bottom-bar-item active" data-page="landing">
+      <span class="icon">🏠</span>홈
+    </button>
+    <button class="bottom-bar-item" data-page="map">
+      <span class="icon">🗺️</span>지도
+    </button>
+    <button class="bottom-bar-item" data-page="events">
+      <span class="icon">🎪</span>이벤트
+    </button>
+    <button class="bottom-bar-item" data-page="profile">
+      <span class="icon">💕</span>매칭
+    </button>
+  </div>
+</div>
+
+<!-- ═══════════ PAGE: Landing ═══════════ -->
+<div class="page active" id="page-landing">
+  
+  <!-- Hero -->
+  <section class="hero">
+    <div class="hero-particles" id="hero-particles"></div>
+    <div class="hero-content">
+      <div class="hero-badge">🌿 공원 기반 소셜 네트워킹</div>
+      <h1>
+        공원에서 만나는<br>
+        <span class="text-gradient">새로운 인연</span>
+      </h1>
+      <p class="hero-desc">
+        같은 공원, 같은 SPOT에 있는 사람들과 자연스럽게 연결되세요.<br>
+        GPS 기반으로 가까운 사람들을 찾고, 실시간으로 소통해보세요.
+      </p>
+      <div class="hero-actions">
+        <button class="btn btn-primary btn-lg" data-action="start">
+          🌳 파크팅 시작하기
+        </button>
+        <button class="btn btn-secondary btn-lg" data-action="events">
+          🎪 이벤트 둘러보기
+        </button>
+      </div>
+    </div>
+  </section>
+
+  <!-- Stats -->
+  <section class="section">
+    <div class="container">
+      <div class="grid-4" id="hero-stats"></div>
+    </div>
+  </section>
+
+  <!-- How It Works -->
+  <section class="section">
+    <div class="container">
+      <div class="section-header reveal">
+        <span class="section-subtitle">How It Works</span>
+        <h2>파크팅은 이렇게 작동해요</h2>
+        <p class="section-desc">공원에서의 만남을 더 자연스럽고 특별하게 만들어 드려요</p>
+      </div>
+      <div class="grid-4 reveal">
+        <div class="card" style="text-align:center; padding:var(--spacing-2xl) var(--spacing-lg);">
+          <div class="step-number" style="margin:0 auto var(--spacing-md);">1</div>
+          <h4 style="margin-bottom:var(--spacing-sm);">공원 선택</h4>
+          <p style="font-size:0.85rem; color:var(--text-secondary);">가고 싶은 공원을 선택하고 SPOT을 확인하세요</p>
+        </div>
+        <div class="card" style="text-align:center; padding:var(--spacing-2xl) var(--spacing-lg);">
+          <div class="step-number" style="margin:0 auto var(--spacing-md);">2</div>
+          <h4 style="margin-bottom:var(--spacing-sm);">SPOT 참여</h4>
+          <p style="font-size:0.85rem; color:var(--text-secondary);">GPS로 자동 감지! 스팟 범위에 들어오면 자동 연결</p>
+        </div>
+        <div class="card" style="text-align:center; padding:var(--spacing-2xl) var(--spacing-lg);">
+          <div class="step-number" style="margin:0 auto var(--spacing-md);">3</div>
+          <h4 style="margin-bottom:var(--spacing-sm);">실시간 매칭</h4>
+          <p style="font-size:0.85rem; color:var(--text-secondary);">같은 SPOT의 사람들과 프로필을 확인하고 매칭하세요</p>
+        </div>
+        <div class="card" style="text-align:center; padding:var(--spacing-2xl) var(--spacing-lg);">
+          <div class="step-number" style="margin:0 auto var(--spacing-md);">4</div>
+          <h4 style="margin-bottom:var(--spacing-sm);">오픈채팅 생성</h4>
+          <p style="font-size:0.85rem; color:var(--text-secondary);">카카오톡 오픈채팅이 자동 생성되어 바로 소통!</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Features -->
+  <section class="section" style="background: var(--bg-secondary);">
+    <div class="container">
+      <div class="section-header reveal">
+        <span class="section-subtitle">Features</span>
+        <h2>왜 <span class="text-gradient">파크팅</span>인가요?</h2>
+        <p class="section-desc">MZ세대를 위한 새로운 지역 커뮤니티 플랫폼</p>
+      </div>
+      <div class="grid-3 reveal">
+        <div class="card" style="padding:var(--spacing-2xl);">
+          <div class="feature-icon feature-icon-pink" style="position:relative;">📍</div>
+          <h4 style="margin-bottom:var(--spacing-sm);">GPS 기반 SPOT</h4>
+          <p style="font-size:0.85rem; color:var(--text-secondary);">실제 위치 데이터로 같은 공간에 있는 사람들을 자동으로 연결합니다. 디지털과 현실이 만나는 순간!</p>
+        </div>
+        <div class="card" style="padding:var(--spacing-2xl);">
+          <div class="feature-icon feature-icon-purple" style="position:relative;">🎪</div>
+          <h4 style="margin-bottom:var(--spacing-sm);">축제 & 이벤트</h4>
+          <p style="font-size:0.85rem; color:var(--text-secondary);">지역 축제와 연계하여 MZ세대의 참여를 이끌어냅니다. 단순 관람이 아닌 진짜 참여!</p>
+        </div>
+        <div class="card" style="padding:var(--spacing-2xl);">
+          <div class="feature-icon feature-icon-blue" style="position:relative;">💬</div>
+          <h4 style="margin-bottom:var(--spacing-sm);">자동 오픈채팅</h4>
+          <p style="font-size:0.85rem; color:var(--text-secondary);">카카오톡 오픈채팅이 자동으로 생성되어 SPOT 내의 사람들이 바로 대화를 시작할 수 있어요.</p>
+        </div>
+        <div class="card" style="padding:var(--spacing-2xl);">
+          <div class="feature-icon feature-icon-green" style="position:relative;">💕</div>
+          <h4 style="margin-bottom:var(--spacing-sm);">소개팅 매칭</h4>
+          <p style="font-size:0.85rem; color:var(--text-secondary);">프로필 카드를 스와이프하여 관심 있는 사람에게 호감을 표현하세요. 자연스러운 만남의 시작!</p>
+        </div>
+        <div class="card" style="padding:var(--spacing-2xl);">
+          <div class="feature-icon feature-icon-pink" style="position:relative;">🏃</div>
+          <h4 style="margin-bottom:var(--spacing-sm);">활동 기반 연결</h4>
+          <p style="font-size:0.85rem; color:var(--text-secondary);">러닝, 요가, 피크닉 등 같은 활동을 하는 사람들끼리 자연스럽게 연결됩니다.</p>
+        </div>
+        <div class="card" style="padding:var(--spacing-2xl);">
+          <div class="feature-icon feature-icon-purple" style="position:relative;">🌐</div>
+          <h4 style="margin-bottom:var(--spacing-sm);">로컬 경제 활성화</h4>
+          <p style="font-size:0.85rem; color:var(--text-secondary);">지역 축제 비용 절감과 MZ세대 참여율 증대로 지역 경제를 살립니다.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- CTA Banner -->
+  <section class="section">
+    <div class="container">
+      <div class="card reveal" style="text-align:center; padding:var(--spacing-4xl); background: linear-gradient(135deg, rgba(255,107,157,0.1), rgba(123,97,255,0.1)); border-color: rgba(196,79,226,0.2);">
+        <h2 style="margin-bottom:var(--spacing-md);">지금 바로 <span class="text-gradient">파크팅</span>을 시작하세요</h2>
+        <p style="color:var(--text-secondary); margin-bottom:var(--spacing-xl); max-width:500px; margin-left:auto; margin-right:auto;">
+          가까운 공원에서 새로운 인연을 만나보세요.<br>같은 SPOT, 같은 관심사의 사람들이 기다리고 있어요!
+        </p>
+        <div style="display:flex; gap:var(--spacing-md); justify-content:center; flex-wrap:wrap;">
+          <button class="btn btn-primary btn-lg" data-action="start">🌳 공원 탐색하기</button>
+          <button class="btn btn-secondary btn-lg" data-action="events">📅 이벤트 보기</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Footer -->
+  <footer style="padding:var(--spacing-2xl) 0; border-top:1px solid var(--border-glass); text-align:center;">
+    <div class="container">
+      <div class="nav-logo" style="justify-content:center; margin-bottom:var(--spacing-md);">
+        <div class="nav-logo-icon">🌳</div>
+        <span class="text-gradient">파크팅</span>
+      </div>
+      <p style="font-size:0.8rem; color:var(--text-muted);">© 2026 파크팅 (Parkting). 공원에서 만나는 새로운 인연.</p>
+      <p style="font-size:0.7rem; color:var(--text-muted); margin-top:var(--spacing-sm);">모두의 창업 · 지역분야 아이디어</p>
+    </div>
+  </footer>
+</div>
+
+<!-- ═══════════ PAGE: Map ═══════════ -->
+<div class="page" id="page-map">
+  <div class="map-wrapper">
+    <div id="map-container"></div>
+    
+    <!-- Map Top Controls -->
+    <div class="map-top-bar">
+      <div class="map-top-bar-row">
+        <button class="btn btn-secondary btn-sm" data-page="landing" style="flex-shrink:0;">← 홈</button>
+        <div class="map-search" style="flex:1;">
+          <span>🔍</span>
+          <input type="text" placeholder="공원 이름으로 검색..." id="park-search">
+        </div>
+        <button class="btn btn-secondary btn-sm" id="locate-me" title="내 위치">📍</button>
+      </div>
+      <div id="park-chips" style="display:flex; flex-wrap:wrap; gap:4px;"></div>
+    </div>
+
+    <!-- Park Info -->
+    <div id="park-info"></div>
+
+    <!-- Spot Sidebar -->
+    <div class="sidebar-panel" id="spot-sidebar">
+      <div class="sidebar-panel-header">
+        <h4>SPOT 정보</h4>
+        <button class="modal-close" id="close-sidebar">✕</button>
+      </div>
+      <div class="sidebar-panel-body" id="spot-detail"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════ PAGE: Events ═══════════ -->
+<div class="page" id="page-events">
+  <div class="container">
+    <div class="section" style="padding-top:120px;">
+      <div class="section-header">
+        <span class="section-subtitle">Events</span>
+        <h2>🎪 이벤트 & 축제</h2>
+        <p class="section-desc">공원에서 열리는 다양한 이벤트에 참여하고, MZ세대만의 특별한 경험을 만들어보세요</p>
+      </div>
+      
+      <div id="event-filters" style="display:flex; flex-wrap:wrap; gap:8px; justify-content:center; margin-bottom:var(--spacing-2xl);"></div>
+      
+      <div id="events-list" style="display:flex; flex-direction:column; gap:var(--spacing-md); max-width:700px; margin:0 auto;"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════ PAGE: Profile / Matching ═══════════ -->
+<div class="page" id="page-profile">
+  <div class="profile-section">
+    <div class="section-header" style="margin-bottom:var(--spacing-lg);">
+      <span class="section-subtitle">Matching</span>
+      <h2>💕 파크팅 매칭</h2>
+      <p class="section-desc">근처 공원에 있는 사람들과 매칭해보세요</p>
+    </div>
+    
+    <div id="card-stack" style="margin-bottom:var(--spacing-md);"></div>
+    
+    <div class="swipe-actions">
+      <button class="swipe-btn swipe-btn-nope" id="btn-nope" title="넘기기">✕</button>
+      <button class="swipe-btn swipe-btn-super" id="btn-super" title="Super Like">⭐</button>
+      <button class="swipe-btn swipe-btn-like" id="btn-like" title="좋아요">♥</button>
+    </div>
+    
+    <div style="width:100%; max-width:500px; padding:0 var(--spacing-lg);">
+      <div id="nearby-users"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════ Modals & Overlays ═══════════ -->
+<div class="modal-overlay" id="event-modal"></div>
+
+<!-- Toast Container -->
+<div id="toast-container" style="position:fixed; bottom:var(--spacing-xl); right:var(--spacing-xl); z-index:2000; display:flex; flex-direction:column; gap:var(--spacing-sm);"></div>
+
+<!-- Particles Script -->
+<script>
+  // Generate floating particles for hero
+  const particlesContainer = document.getElementById('hero-particles');
+  if (particlesContainer) {
+    const colors = ['#FF6B9D', '#C44FE2', '#7B61FF', '#2AF598', '#FF8E53'];
+    for (let i = 0; i < 20; i++) {
+      const p = document.createElement('div');
+      p.className = 'particle';
+      const size = Math.random() * 6 + 2;
+      p.style.cssText = `
+        width: ${size}px;
+        height: ${size}px;
+        background: ${colors[i % colors.length]};
+        left: ${Math.random() * 100}%;
+        top: ${Math.random() * 100}%;
+        opacity: ${Math.random() * 0.5 + 0.2};
+        animation-delay: ${Math.random() * 5}s;
+        animation-duration: ${Math.random() * 5 + 5}s;
+      `;
+      particlesContainer.appendChild(p);
+    }
+  }
+</script>
+
+<!-- App JS -->
+<script type="module" src="js/app.js"></script>
+
+</body>
+</html>
