@@ -1,8 +1,10 @@
 // ============================================
-// 파크팅 (Parkting) - Events Page
+// 파크팅 (Parkting) - Events Page (V2)
 // ============================================
 
 import { EVENTS, PARKS, SPOT_TYPES } from './data.js';
+
+let miniMaps = [];
 
 function initEvents(app) {
   renderEventFilters();
@@ -24,23 +26,28 @@ function renderEvents(filter) {
   const container = document.getElementById('events-list');
   if (!container) return;
   
+  // Clean up old mini maps
+  miniMaps.forEach(m => m.remove());
+  miniMaps = [];
+  
   const filtered = filter === 'all' ? EVENTS : EVENTS.filter(e => e.park === filter);
   
   container.innerHTML = filtered.map(event => {
     const d = new Date(event.date);
     const months = ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
     const park = PARKS.find(p => p.id === event.park);
+    const spot = park?.spots.find(s => s.id === event.spot);
     const progress = Math.round((event.participants / event.maxParticipants) * 100);
     
     return `
-      <div class="event-card" data-event="${event.id}">
-        <div class="event-card-date">
-          <span class="event-card-date-month">${months[d.getMonth()]}</span>
-          <span class="event-card-date-day">${d.getDate()}</span>
+      <div class="event-card-v2" data-event="${event.id}" style="display:flex; gap:var(--spacing-md); padding:var(--spacing-lg); background:var(--bg-glass); border:1px solid var(--border-glass); border-radius:var(--radius-lg); transition:var(--transition-base); cursor:pointer;">
+        <div class="event-card-date" style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-width:60px;height:60px;background:var(--gradient-primary);border-radius:var(--radius-md);font-weight:700;">
+          <span style="font-size:0.65rem;text-transform:uppercase;letter-spacing:1px;">${months[d.getMonth()]}</span>
+          <span style="font-size:1.3rem;line-height:1;">${d.getDate()}</span>
         </div>
-        <div class="event-card-info">
-          <div class="event-card-title">${event.image} ${event.title}</div>
-          <div class="event-card-meta">
+        <div style="flex:1; min-width:0;">
+          <div style="font-size:1rem; font-weight:600; margin-bottom:4px;">${event.image} ${event.title}</div>
+          <div style="display:flex; gap:var(--spacing-md); font-size:0.8rem; color:var(--text-secondary); flex-wrap:wrap;">
             <span>📍 ${park ? park.name : ''}</span>
             <span>🕐 ${event.time}</span>
             <span>👥 ${event.participants}/${event.maxParticipants}</span>
@@ -49,12 +56,54 @@ function renderEvents(filter) {
             ${event.tags.map(t => `<span class="tag tag-purple">${t}</span>`).join('')}
           </div>
           <div style="margin-top:8px; background:rgba(255,255,255,0.1); border-radius:999px; height:4px; overflow:hidden;">
-            <div style="background:var(--gradient-primary); height:100%; width:${progress}%; border-radius:999px; transition:width 0.5s ease;"></div>
+            <div style="background:var(--gradient-primary); height:100%; width:${progress}%; border-radius:999px;"></div>
           </div>
+        </div>
+        <!-- Mini Map -->
+        <div style="flex-shrink:0; width:120px; height:120px; border-radius:var(--radius-md); overflow:hidden; border:1px solid var(--border-glass);">
+          <div id="mini-map-${event.id}" style="width:100%; height:100%;"></div>
         </div>
       </div>
     `;
   }).join('');
+  
+  // Initialize mini maps after DOM render
+  requestAnimationFrame(() => {
+    filtered.forEach(event => {
+      const park = PARKS.find(p => p.id === event.park);
+      const spot = park?.spots.find(s => s.id === event.spot);
+      if (!park || !spot) return;
+      
+      const el = document.getElementById(`mini-map-${event.id}`);
+      if (!el) return;
+      
+      try {
+        const miniMap = L.map(el, {
+          zoomControl: false,
+          attributionControl: false,
+          dragging: false,
+          scrollWheelZoom: false,
+          doubleClickZoom: false,
+          touchZoom: false
+        }).setView([spot.lat, spot.lng], 15);
+        
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+          maxZoom: 19
+        }).addTo(miniMap);
+        
+        const spotType = SPOT_TYPES[spot.type] || {};
+        L.circleMarker([spot.lat, spot.lng], {
+          radius: 8,
+          color: spotType.color || '#FF6B9D',
+          fillColor: spotType.color || '#FF6B9D',
+          fillOpacity: 0.8,
+          weight: 2
+        }).addTo(miniMap);
+        
+        miniMaps.push(miniMap);
+      } catch(e) {}
+    });
+  });
 }
 
 function setupEventFilters() {
@@ -69,7 +118,7 @@ function setupEventFilters() {
 
 function setupEventModal(app) {
   document.getElementById('events-list')?.addEventListener('click', (e) => {
-    const card = e.target.closest('.event-card');
+    const card = e.target.closest('[data-event]');
     if (!card) return;
     const event = EVENTS.find(ev => ev.id === parseInt(card.dataset.event));
     if (!event) return;
@@ -80,12 +129,18 @@ function setupEventModal(app) {
     
     const overlay = document.getElementById('event-modal');
     overlay.innerHTML = `
-      <div class="modal">
+      <div class="modal" style="max-width:550px;">
         <button class="modal-close" id="close-event-modal">✕</button>
-        <div style="text-align:center; margin-bottom:var(--spacing-xl);">
+        <div style="text-align:center; margin-bottom:var(--spacing-lg);">
           <div style="font-size:4rem; margin-bottom:var(--spacing-sm);">${event.image}</div>
           <h3>${event.title}</h3>
         </div>
+        
+        <!-- Modal Map -->
+        <div style="width:100%; height:180px; border-radius:var(--radius-md); overflow:hidden; margin-bottom:var(--spacing-lg); border:1px solid var(--border-glass);">
+          <div id="modal-map" style="width:100%; height:100%;"></div>
+        </div>
+        
         <div style="display:flex; gap:var(--spacing-md); margin-bottom:var(--spacing-lg);">
           <div class="card" style="flex:1; text-align:center; padding:var(--spacing-md);">
             <div style="font-size:0.7rem; color:var(--text-muted);">날짜</div>
@@ -114,6 +169,22 @@ function setupEventModal(app) {
       </div>
     `;
     overlay.classList.add('active');
+    
+    // Modal map
+    requestAnimationFrame(() => {
+      if (spot) {
+        try {
+          const modalMap = L.map('modal-map', {
+            zoomControl: false, attributionControl: false,
+            dragging: false, scrollWheelZoom: false
+          }).setView([spot.lat, spot.lng], 16);
+          L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', { maxZoom: 19 }).addTo(modalMap);
+          const spotType = SPOT_TYPES[spot.type] || {};
+          L.circle([spot.lat, spot.lng], { radius: spot.radius, color: spotType.color || '#FF6B9D', fillOpacity: 0.15, weight: 2 }).addTo(modalMap);
+          L.circleMarker([spot.lat, spot.lng], { radius: 8, color: spotType.color || '#FF6B9D', fillColor: spotType.color || '#FF6B9D', fillOpacity: 1, weight: 0 }).addTo(modalMap);
+        } catch(e) {}
+      }
+    });
     
     document.getElementById('close-event-modal').addEventListener('click', () => overlay.classList.remove('active'));
     overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.classList.remove('active'); });

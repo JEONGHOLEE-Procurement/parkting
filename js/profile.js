@@ -13,6 +13,7 @@ function initProfile(app) {
   renderCurrentCard();
   setupSwipeActions(app);
   renderNearbyUsers();
+  setupChatbot();
 }
 
 function renderCurrentCard() {
@@ -148,6 +149,9 @@ function swipeCard(direction, app) {
   
   if (direction === 'right') {
     app.showToast(`${user.name}님에게 관심을 보냈습니다! 💕`, '💖');
+    setTimeout(() => {
+      showChatbotMessage(`${user.name}님에게 좋아요를 보냈어요! 매칭 결과가 곧 도착합니다.`);
+    }, 1000);
   }
   
   setTimeout(() => {
@@ -193,6 +197,54 @@ function renderNearbyUsers() {
       }).join('')}
     </div>
   `;
+}
+
+function setupChatbot() {
+  const toggle = document.getElementById('chatbot-toggle');
+  const widget = document.getElementById('chatbot-widget');
+  const bubble = document.getElementById('chatbot-bubble');
+  const close = document.getElementById('chatbot-close');
+  const sendBtn = document.getElementById('chatbot-send');
+  const input = document.getElementById('chatbot-input');
+  const messages = document.getElementById('chatbot-messages');
+
+  if (widget) widget.style.display = 'flex';
+
+  toggle?.addEventListener('click', () => {
+    bubble.classList.toggle('active');
+  });
+
+  close?.addEventListener('click', () => {
+    bubble.classList.remove('active');
+  });
+
+  const sendMsg = () => {
+    const text = input.value.trim();
+    if (!text) return;
+    messages.innerHTML += `<div style="background:var(--gradient-primary); padding:6px 10px; border-radius:12px 12px 2px 12px; align-self:flex-end; color:white;">${text}</div>`;
+    input.value = '';
+    messages.scrollTop = messages.scrollHeight;
+    
+    setTimeout(() => {
+      messages.innerHTML += `<div style="background:var(--bg-primary); padding:6px 10px; border-radius:12px 12px 12px 2px;">파크팅 매칭에 대해 궁금한 점이 있으신가요? 아직 답변을 준비중이에요 😊</div>`;
+      messages.scrollTop = messages.scrollHeight;
+    }, 1000);
+  };
+
+  sendBtn?.addEventListener('click', sendMsg);
+  input?.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') sendMsg();
+  });
+}
+
+function showChatbotMessage(msg) {
+  const bubble = document.getElementById('chatbot-bubble');
+  const messages = document.getElementById('chatbot-messages');
+  if (bubble && messages) {
+    bubble.classList.add('active');
+    messages.innerHTML += `<div style="background:var(--bg-primary); padding:6px 10px; border-radius:12px 12px 12px 2px;">${msg}</div>`;
+    messages.scrollTop = messages.scrollHeight;
+  }
 }
 
 export { initProfile };

@@ -7,6 +7,7 @@ import { initLanding } from './landing.js';
 import { initMap } from './map.js';
 import { initEvents } from './events.js';
 import { initProfile } from './profile.js';
+import { initChat } from './chat.js';
 
 class App {
   constructor() {
@@ -114,6 +115,7 @@ class App {
     initMap(this);
     initEvents(this);
     initProfile(this);
+    initChat(this);
   }
 
   showToast(message, icon = '✨') {

@@ -233,6 +233,7 @@
       <div class="nav-item" data-page="map">지도</div>
       <div class="nav-item" data-page="events">이벤트</div>
       <div class="nav-item" data-page="profile">매칭</div>
+      <div class="nav-item" data-page="chat">채팅</div>
       <button class="nav-cta" data-action="start">시작하기</button>
     </div>
     <button class="nav-toggle" id="nav-toggle">
@@ -255,6 +256,9 @@
     </button>
     <button class="bottom-bar-item" data-page="profile">
       <span class="icon">💕</span>매칭
+    </button>
+    <button class="bottom-bar-item" data-page="chat">
+      <span class="icon">💬</span>채팅
     </button>
   </div>
 </div>
@@ -468,6 +472,49 @@
       <div id="nearby-users"></div>
     </div>
   </div>
+</div>
+
+<!-- ═══════════ PAGE: Chat ═══════════ -->
+<div class="page" id="page-chat">
+  <!-- Chat List View -->
+  <div id="chat-list-view" style="padding-top:100px; min-height:100vh; max-width:600px; margin:0 auto; width:100%;">
+    <div class="section-header" style="margin-bottom:var(--spacing-lg);">
+      <span class="section-subtitle">Messages</span>
+      <h2>💬 채팅</h2>
+    </div>
+    <div id="chat-list" style="display:flex; flex-direction:column; gap:var(--spacing-xs); padding:0 var(--spacing-lg);"></div>
+  </div>
+
+  <!-- Chat Room View -->
+  <div id="chat-view">
+    <div id="chat-header">
+      <div id="chat-header-content" style="display:flex; align-items:center; gap:var(--spacing-sm); width:100%;"></div>
+    </div>
+    <div id="chat-messages"></div>
+    <div id="chat-input-area">
+      <button style="background:none; border:none; color:var(--text-secondary); font-size:1.5rem;">+</button>
+      <input type="text" id="chat-input" placeholder="메시지를 입력하세요...">
+      <button id="chat-send-btn">➤</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════ Chat Bot Widget ═══════════ -->
+<div class="chatbot-widget" id="chatbot-widget" style="display:none;">
+  <div class="chatbot-bubble" id="chatbot-bubble">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+      <span style="font-weight:600; font-size:0.9rem;">매칭 챗봇 💕</span>
+      <button style="background:none;border:none;color:var(--text-muted);cursor:pointer;" id="chatbot-close">✕</button>
+    </div>
+    <div id="chatbot-messages" style="max-height:150px; overflow-y:auto; margin-bottom:8px; font-size:0.85rem; color:var(--text-secondary); display:flex; flex-direction:column; gap:4px;">
+      <div style="background:var(--bg-primary); padding:6px 10px; border-radius:12px 12px 12px 2px;">안녕하세요! 마음에 드는 분이 있다면 좋아요를 눌러보세요.</div>
+    </div>
+    <div style="display:flex; gap:4px;">
+      <input type="text" id="chatbot-input" style="flex:1; background:var(--bg-primary); border:1px solid var(--border-glass); border-radius:12px; padding:6px 10px; color:white; font-size:0.8rem;" placeholder="메시지...">
+      <button id="chatbot-send" style="background:var(--gradient-primary); border:none; border-radius:12px; color:white; padding:0 10px; font-size:0.8rem; cursor:pointer;">➤</button>
+    </div>
+  </div>
+  <div class="chatbot-toggle" id="chatbot-toggle">💬</div>
 </div>
 
 <!-- ═══════════ Modals & Overlays ═══════════ -->

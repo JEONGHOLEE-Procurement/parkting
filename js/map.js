@@ -1,5 +1,5 @@
 // ============================================
-// 파크팅 (Parkting) - Map & SPOT System
+// 파크팅 (Parkting) - Map & SPOT System (V2)
 // ============================================
 
 import { PARKS, MOCK_USERS, SPOT_TYPES } from './data.js';
@@ -53,12 +53,10 @@ function initLeafletMap(park) {
 
   L.control.zoom({ position: 'bottomright' }).addTo(map);
   
-  // Add spots
   clearMarkers();
   park.spots.forEach(spot => {
     const spotType = SPOT_TYPES[spot.type];
     
-    // Spot circle
     const circle = L.circle([spot.lat, spot.lng], {
       radius: spot.radius,
       color: spotType.color,
@@ -70,7 +68,6 @@ function initLeafletMap(park) {
     }).addTo(map);
     spotCircles.push(circle);
     
-    // Spot marker
     const icon = L.divIcon({
       className: 'spot-marker',
       html: `<div class="spot-marker-inner" style="background: ${spotType.color}20; border: 2px solid ${spotType.color};">
@@ -85,7 +82,6 @@ function initLeafletMap(park) {
     marker.on('click', () => showSpotDetail(spot, park));
     markers.push(marker);
     
-    // User markers in spot
     const usersInSpot = MOCK_USERS.filter(u => u.location === spot.id);
     usersInSpot.forEach(user => {
       const offsetLat = spot.lat + (Math.random() - 0.5) * 0.001;
@@ -139,6 +135,12 @@ function showSpotDetail(spot, park) {
   const spotType = SPOT_TYPES[spot.type];
   const usersHere = MOCK_USERS.filter(u => u.location === spot.id);
   
+  // Mock existing chat rooms for this spot
+  const mockChatRooms = [
+    { name: `${spot.name} 모임`, members: Math.floor(spot.activeUsers * 0.6), active: true },
+    { name: `${spot.name} 운동메이트`, members: Math.floor(spot.activeUsers * 0.3), active: true },
+  ];
+  
   document.getElementById('spot-detail').innerHTML = `
     <div style="text-align:center; padding:var(--spacing-lg) 0;">
       <div style="font-size:3rem; margin-bottom:var(--spacing-sm);">${spot.icon}</div>
@@ -172,16 +174,138 @@ function showSpotDetail(spot, park) {
       `).join('')}
     </div>
 
-    <button class="kakao-btn" style="width:100%; justify-content:center;" onclick="window.app.showToast('카카오톡 오픈채팅이 생성되었습니다! 💬', '💛')">
-      💬 오픈채팅 참여하기
-    </button>
-    <p style="text-align:center; font-size:0.7rem; color:var(--text-muted); margin-top:var(--spacing-sm);">
-      이 SPOT의 오픈 카카오톡 채팅방이 자동으로 생성됩니다
+    <!-- V2: 오픈채팅 참여/만들기 2가지 옵션 -->
+    <h4 style="margin-bottom:var(--spacing-md);">💬 오픈채팅</h4>
+    <div style="display:flex; gap:var(--spacing-sm); margin-bottom:var(--spacing-md);">
+      <button class="btn btn-primary" style="flex:1; font-size:0.85rem;" id="btn-join-chat">
+        ✅ 참여하기
+      </button>
+      <button class="kakao-btn" style="flex:1; justify-content:center; font-size:0.85rem;" id="btn-create-chat">
+        ➕ 만들기
+      </button>
+    </div>
+
+    <!-- 기존 채팅방 목록 (참여하기 클릭 시 표시) -->
+    <div id="chat-room-list" style="display:none; margin-bottom:var(--spacing-lg);">
+      <p style="font-size:0.75rem; color:var(--text-muted); margin-bottom:var(--spacing-sm);">현재 활성 채팅방</p>
+      ${mockChatRooms.map((room, i) => `
+        <div class="card chat-room-item" style="display:flex; align-items:center; gap:var(--spacing-md); padding:var(--spacing-md); margin-bottom:var(--spacing-xs); cursor:pointer;" data-room="${i}">
+          <div style="width:40px; height:40px; border-radius:var(--radius-md); background:var(--gradient-primary); display:flex; align-items:center; justify-content:center; font-size:1.2rem;">💬</div>
+          <div style="flex:1;">
+            <div style="font-weight:600; font-size:0.85rem;">${room.name}</div>
+            <div style="font-size:0.7rem; color:var(--text-secondary);">👥 ${room.members}명 참여중</div>
+          </div>
+          <span class="participant-dot"></span>
+        </div>
+      `).join('')}
+    </div>
+
+    <!-- 채팅방 만들기 폼 (만들기 클릭 시 표시) -->
+    <div id="create-chat-form" style="display:none; margin-bottom:var(--spacing-lg);">
+      <div style="margin-bottom:var(--spacing-md);">
+        <label style="display:block; font-size:0.8rem; color:var(--text-secondary); margin-bottom:4px;">채팅방 이름</label>
+        <input type="text" class="input" id="chat-room-name" placeholder="예: ${spot.name} 러닝크루" style="width:100%;">
+      </div>
+      <div style="margin-bottom:var(--spacing-md);">
+        <label style="display:block; font-size:0.8rem; color:var(--text-secondary); margin-bottom:4px;">설명 (선택)</label>
+        <input type="text" class="input" id="chat-room-desc" placeholder="채팅방 소개를 입력하세요" style="width:100%;">
+      </div>
+      <button class="kakao-btn" style="width:100%; justify-content:center;" id="btn-kakao-login-create">
+        🔑 카카오 로그인 후 생성하기
+      </button>
+    </div>
+
+    <p style="text-align:center; font-size:0.7rem; color:var(--text-muted);">
+      카카오톡 오픈채팅으로 자동 연결됩니다
     </p>
   `;
   
+  // Event listeners for chat options
+  setupChatOptions(spot, park);
+  
   sidebar.classList.add('open');
   sidebarOpen = true;
+}
+
+function setupChatOptions(spot, park) {
+  const joinBtn = document.getElementById('btn-join-chat');
+  const createBtn = document.getElementById('btn-create-chat');
+  const roomList = document.getElementById('chat-room-list');
+  const createForm = document.getElementById('create-chat-form');
+  
+  joinBtn?.addEventListener('click', () => {
+    roomList.style.display = roomList.style.display === 'none' ? 'block' : 'none';
+    createForm.style.display = 'none';
+  });
+  
+  createBtn?.addEventListener('click', () => {
+    createForm.style.display = createForm.style.display === 'none' ? 'block' : 'none';
+    roomList.style.display = 'none';
+  });
+  
+  // Join existing room
+  document.querySelectorAll('.chat-room-item').forEach(item => {
+    item.addEventListener('click', () => {
+      showKakaoLoginModal(() => {
+        window.app.showToast('오픈채팅에 참여했습니다! 💬', '💛');
+      });
+    });
+  });
+  
+  // Create new room
+  document.getElementById('btn-kakao-login-create')?.addEventListener('click', () => {
+    const name = document.getElementById('chat-room-name')?.value;
+    if (!name) {
+      window.app.showToast('채팅방 이름을 입력해주세요', '⚠️');
+      return;
+    }
+    showKakaoLoginModal(() => {
+      window.app.showToast(`'${name}' 채팅방이 생성되었습니다! 🎉`, '💛');
+      createForm.style.display = 'none';
+    });
+  });
+}
+
+function showKakaoLoginModal(onSuccess) {
+  const overlay = document.getElementById('kakao-login-modal');
+  if (!overlay) return;
+  
+  overlay.innerHTML = `
+    <div class="modal" style="max-width:400px;">
+      <button class="modal-close" id="close-kakao-modal">✕</button>
+      <div style="text-align:center; padding:var(--spacing-lg) 0;">
+        <div style="width:60px; height:60px; background:#FEE500; border-radius:var(--radius-lg); display:flex; align-items:center; justify-content:center; font-size:2rem; margin:0 auto var(--spacing-lg);">💬</div>
+        <h3 style="margin-bottom:var(--spacing-sm);">카카오 로그인</h3>
+        <p style="font-size:0.85rem; color:var(--text-secondary); margin-bottom:var(--spacing-xl);">
+          오픈채팅 기능을 이용하려면<br>카카오 계정으로 로그인해주세요
+        </p>
+        <button class="kakao-btn" style="width:100%; justify-content:center; padding:var(--spacing-md) var(--spacing-xl);" id="kakao-login-btn">
+          💬 카카오 계정으로 계속하기
+        </button>
+        <p style="font-size:0.7rem; color:var(--text-muted); margin-top:var(--spacing-md);">
+          로그인 시 이용약관에 동의하는 것으로 간주합니다
+        </p>
+      </div>
+    </div>
+  `;
+  overlay.classList.add('active');
+  
+  document.getElementById('close-kakao-modal')?.addEventListener('click', () => {
+    overlay.classList.remove('active');
+  });
+  overlay.addEventListener('click', (e) => {
+    if (e.target === overlay) overlay.classList.remove('active');
+  });
+  
+  document.getElementById('kakao-login-btn')?.addEventListener('click', () => {
+    // Simulate login
+    const btn = document.getElementById('kakao-login-btn');
+    btn.innerHTML = '<div class="spinner" style="width:20px;height:20px;border-width:2px;margin:0 auto;"></div>';
+    setTimeout(() => {
+      overlay.classList.remove('active');
+      if (onSuccess) onSuccess();
+    }, 1500);
+  });
 }
 
 function clearMarkers() {
