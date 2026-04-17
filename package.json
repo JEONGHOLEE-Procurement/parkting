@@ -1,0 +1,11 @@
+{
+  "name": "parkting",
+  "version": "1.0.0",
+  "description": "파크팅 - 공원 기반 소셜 네트워킹 웹앱",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2"
+  }
+}
